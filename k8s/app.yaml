@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: geoapi-app
+  name: geoapi-app-service
+spec:
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  selector:
+    app: geoapi-app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: geoapi-app
+  name: geoapi-app-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: geoapi-app
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: geoapi-app
+    spec:
+      containers:
+        - args:
+            - python3
+            - app/main.py
+          image: cuprizevich/geoapi:latest
+          name: geoapi-app
+          resources:
+            requests:
+              cpu: 0.5
+              memory: 512Mi
+          ports:
+            - containerPort: 8080
+      restartPolicy: Always

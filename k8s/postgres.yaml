@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app: geoapi-postgres
+  name: geoapi-postgres-volume
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      # Local db's on size disk is 271Mb for 300k rows and 3 indexes.
+      # TODO: update this value before enlarging database
+      storage: 300Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: geoapi-postgres
+  name: geoapi-postgres-service
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: geoapi-postgres
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: geoapi-postgres
+  name: geoapi-postgres
+spec:
+  selector:
+    matchLabels:
+      app: geoapi-postgres
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: geoapi-postgres
+    spec:
+      restartPolicy: Always
+      containers:
+        - env:
+            - name: POSTGRES_DB
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: postgres
+            - name: POSTGRES_USER
+              value: postgres
+          image: postgis/postgis
+          name: geoapi-postgres
+          resources:
+            # 1 cpu and 2Gb RAM are PostgreSQL's minimal requirements
+            requests:
+              cpu: 0.5
+              memory: 2Gi
+            limits:
+              cpu: 1
+              memory: 4Gi
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: geoapi-postgres-volume
+      volumes:
+        - name: geoapi-postgres-volume
+          persistentVolumeClaim:
+            claimName: geoapi-postgres-volume
